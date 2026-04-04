@@ -1,0 +1,49 @@
+The aircraft table stores information about aircraft. It has the following columns: aircraft_code, aircraft_description, manufacturer, basic_type, engines, propulsion, wide_body, wing_span, length, weight, capacity, pay_load, cruising_speed, range_miles, pressurized.
+
+The airline table stores information about airlines. It has the following columns: airline_code, airline_name, note.
+
+The airport table stores information about airports. It has the following columns: airport_code, airport_name, airport_location, state_code, country_name, time_zone_code, minimum_connect_time.
+
+The airport_service table stores information about the service between cities and airports. It has the following columns: city_code, airport_code, miles_distant, direction, minutes_distant.
+
+The city table stores information about cities. It has the following columns: city_code, city_name, state_code, country_name, time_zone_code.
+
+The class_of_service table stores information about classes of service. It has the following columns: booking_class, rank, class_description.
+
+The code_description table stores codes and their descriptions. It has the following columns: code, description.
+
+The compartment_class table stores the mapping between compartments and class types. It has the following columns: compartment, class_type.
+
+The date_day table stores information about calendar days. It has the following columns: month_number, day_number, year, day_name.
+
+The days table stores day codes and their corresponding day names. It has the following columns: days_code, day_name.
+
+The dual_carrier table stores information about flights operated by two carriers. It has the following columns: main_airline, low_flight_number, high_flight_number, dual_airline, service_name.
+
+The equipment_sequence table stores the mapping between aircraft code sequences and aircraft codes. It has the following columns: aircraft_code_sequence, aircraft_code.
+
+The fare table stores information about fares. It has the following columns: fare_id, from_airport, to_airport, fare_basis_code, fare_airline, restriction_code, one_direction_cost, round_trip_cost, round_trip_required.
+
+The fare_basis table stores information about fare basis codes. It has the following columns: fare_basis_code, booking_class, class_type, premium, economy, discounted, night, season, basis_days.
+
+The flight table stores information about flights. It has the following columns: flight_id, flight_days, from_airport, to_airport, departure_time, arrival_time, airline_flight, airline_code, flight_number, aircraft_code_sequence, meal_code, stops, connections, dual_carrier, time_elapsed.
+
+The flight_fare table stores the mapping between flights and fares. It has the following columns: flight_id, fare_id.
+
+The flight_leg table stores information about flight legs. It has the following columns: flight_id, leg_number, leg_flight.
+
+The flight_stop table stores information about stops during a flight. It has the following columns: flight_id, stop_number, stop_days, stop_airport, arrival_time, arrival_airline, arrival_flight_number, departure_time, departure_airline, departure_flight_number, stop_time.
+
+The food_service table stores information about meal services on flights. It has the following columns: meal_code, meal_number, compartment, meal_description.
+
+The ground_service table stores information about ground transportation services at airports. It has the following columns: city_code, airport_code, transport_type, ground_fare.
+
+The month table stores month numbers and their names. It has the following columns: month_number, month_name.
+
+The restriction table stores information about fare restrictions. It has the following columns: restriction_code, advance_purchase, stopovers, saturday_stay_required, minimum_stay, maximum_stay, application, no_discounts.
+
+The state table stores information about states. It has the following columns: state_code, state_name, country_name.
+
+The time_interval table stores time intervals with begin and end times. It has the following columns: period, begin_time, end_time.
+
+The time_zone table stores information about time zones. It has the following columns: time_zone_code, time_zone_name, hours_from_gmt.

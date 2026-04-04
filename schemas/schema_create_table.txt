@@ -1,0 +1,205 @@
+CREATE TABLE aircraft (
+  aircraft_code varchar,
+  aircraft_description varchar,
+  manufacturer varchar,
+  basic_type varchar,
+  engines int,
+  propulsion varchar,
+  wide_body varchar,
+  wing_span int,
+  length int,
+  weight int,
+  capacity int,
+  pay_load int,
+  cruising_speed int,
+  range_miles int,
+  pressurized varchar
+)
+
+CREATE TABLE airline (
+  airline_code varchar,
+  airline_name text,
+  note text
+)
+
+CREATE TABLE airport (
+  airport_code varchar,
+  airport_name text,
+  airport_location text,
+  state_code varchar,
+  country_name varchar,
+  time_zone_code varchar,
+  minimum_connect_time int
+)
+
+CREATE TABLE airport_service (
+  city_code varchar,
+  airport_code varchar,
+  miles_distant int,
+  direction varchar,
+  minutes_distant int
+)
+
+CREATE TABLE city (
+  city_code varchar,
+  city_name varchar,
+  state_code varchar,
+  country_name varchar,
+  time_zone_code varchar
+)
+
+CREATE TABLE class_of_service (
+  booking_class varchar PRIMARY KEY,
+  rank int,
+  class_description text
+)
+
+CREATE TABLE code_description (
+  code varchar PRIMARY KEY,
+  description text
+)
+
+CREATE TABLE compartment_class (
+  compartment varchar,
+  class_type varchar
+)
+
+CREATE TABLE date_day (
+  month_number int,
+  day_number int,
+  year int,
+  day_name varchar
+)
+
+CREATE TABLE days (
+  days_code varchar,
+  day_name varchar
+)
+
+CREATE TABLE dual_carrier (
+  main_airline varchar,
+  low_flight_number int,
+  high_flight_number int,
+  dual_airline varchar,
+  service_name text
+)
+
+CREATE TABLE equipment_sequence (
+  aircraft_code_sequence varchar,
+  aircraft_code varchar
+)
+
+CREATE TABLE fare (
+  fare_id int PRIMARY KEY,
+  from_airport varchar,
+  to_airport varchar,
+  fare_basis_code text,
+  fare_airline text,
+  restriction_code text,
+  one_direction_cost int,
+  round_trip_cost int,
+  round_trip_required varchar
+)
+
+CREATE TABLE fare_basis (
+  fare_basis_code text,
+  booking_class text,
+  class_type text,
+  premium text,
+  economy text,
+  discounted text,
+  night text,
+  season text,
+  basis_days text
+)
+
+CREATE TABLE flight (
+  flight_id int PRIMARY KEY,
+  flight_days text,
+  from_airport varchar,
+  to_airport varchar,
+  departure_time int,
+  arrival_time int,
+  airline_flight text,
+  airline_code varchar,
+  flight_number int,
+  aircraft_code_sequence text,
+  meal_code text,
+  stops int,
+  connections int,
+  dual_carrier text,
+  time_elapsed int
+)
+
+CREATE TABLE flight_fare (
+  flight_id int,
+  fare_id int
+)
+
+CREATE TABLE flight_leg (
+  flight_id int,
+  leg_number int,
+  leg_flight int
+)
+
+CREATE TABLE flight_stop (
+  flight_id int,
+  stop_number int,
+  stop_days text,
+  stop_airport text,
+  arrival_time int,
+  arrival_airline text,
+  arrival_flight_number int,
+  departure_time int,
+  departure_airline text,
+  departure_flight_number int,
+  stop_time int
+)
+
+CREATE TABLE food_service (
+  meal_code text,
+  meal_number int,
+  compartment text,
+  meal_description varchar
+)
+
+CREATE TABLE ground_service (
+  city_code text,
+  airport_code text,
+  transport_type text,
+  ground_fare int
+)
+
+CREATE TABLE month (
+  month_number int,
+  month_name text
+)
+
+CREATE TABLE restriction (
+  restriction_code text,
+  advance_purchase int,
+  stopovers text,
+  saturday_stay_required text,
+  minimum_stay int,
+  maximum_stay int,
+  application text,
+  no_discounts text
+)
+
+CREATE TABLE state (
+  state_code text,
+  state_name text,
+  country_name text
+)
+
+CREATE TABLE time_interval (
+  period text,
+  begin_time int,
+  end_time int
+)
+
+CREATE TABLE time_zone (
+  time_zone_code text,
+  time_zone_name text,
+  hours_from_gmt int
+)
