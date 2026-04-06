@@ -1,0 +1,18 @@
+Smoke Test Log
+==============
+Model: meta-llama/Llama-3.1-8B
+LoRA rank: 8
+LoRA alpha: 16
+Optimizer: AdamW
+Learning Rate: 5e-05
+Epochs: 1
+Batch Size: 2
+Hardware: NVIDIA A100-SXM4-40GB
+
+Step     Train Loss      Val Loss       
+========================================
+10       0.4793          0.5129         
+20       0.3039          0.3262         
+30       0.1511          0.1700         
+40       0.0452          0.0505         
+50       0.0243          0.0236         
