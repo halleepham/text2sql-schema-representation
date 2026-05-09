@@ -2,8 +2,7 @@
 # train.py
 # Full LoRA fine-tuning pipeline for text-to-SQL on ATIS dataset
 
-# Adapted from train_sft_simple() in 01_milestone2_smoke_test.ipynb.
-# Adds: model loading, QLoRA setup, adapter saving, and epoch-level training
+# Adapted from train_sft_simple() in Milestone 2 notebook.
 
 # main entry point: run_training()
 # =============================================================================
@@ -11,15 +10,10 @@
 import os
 import json
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from peft import get_peft_model, LoraConfig, TaskType
 
 from config import (
     MODEL_ID,
     LORA_R,
-    LORA_ALPHA,
-    LORA_TARGET_MODULES,
-    LORA_DROPOUT,
     EPOCHS,
     LR,
     EVAL_EVERY,
@@ -32,99 +26,7 @@ from config import (
 )
 from prompt_builder import load_schema
 from dataset import make_dataloaders
-
-
-# =============================================================================
-# DATA LOADING
-# =============================================================================
-
-def load_jsonl(path):
-    """Load a JSONL file and return a list of dicts."""
-    data = []
-    with open(path, "r") as f:
-        for line in f:
-            data.append(json.loads(line))
-    return data
-
-
-# =============================================================================
-# MODEL LOADING
-# =============================================================================
-
-def load_base_model_and_tokenizer():
-    """
-    Load LLaMA 3.1 8B in 4-bit NF4 quantization (QLoRA) and its tokenizer.
-
-    The base model weights are loaded in 4-bit precision to reduce GPU memory.
-    The base model weights remain frozen (only LoRA adapter weights are trained).
-
-    Returns:
-        model: quantized base model
-        tokenizer: LLaMA tokenizer with pad token set to EOS
-    """
-
-    # 4-bit NF4 quantization configuration (QLoRA — Dettmers et al. 2023)
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,  # load model in 4-bit precision
-        bnb_4bit_use_double_quant=True, # nested quantization for extra memory savings
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-    )
-
-    # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-
-    # LLaMA has no dedicated pad token —> use EOS token instead
-    # This is the same decision made in Milestone 2 and documented in the report.
-    tokenizer.pad_token = tokenizer.eos_token
-
-    # Load base model with quantization
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID,
-        quantization_config=bnb_config,
-        device_map="auto",      # automatically place layers on available GPU(s)
-    )
-
-    # Disable KV cache during training (only used for faster inference, not training)
-    model.config.use_cache = False
-
-    return model, tokenizer
-
-
-# =============================================================================
-# LORA SETUP
-# =============================================================================
-
-def attach_lora(model, rank=LORA_R):
-    """
-    Attach LoRA adapters to the base model.
-
-    Only the adapter weights are trainable.
-    The base model weights remain frozen.
-
-    Args:
-        model: quantized base model
-        rank: LoRA rank r.
-
-    Returns:
-        model: base model with LoRA adapters attached
-    """
-
-    lora_config = LoraConfig(
-        r=rank,                              # rank of the LoRA decomposition
-        lora_alpha=LORA_ALPHA,               # scaling factor (set to 2x rank by convention)
-        target_modules=LORA_TARGET_MODULES,  # attach to q_proj and v_proj in all layers
-        lora_dropout=LORA_DROPOUT,           # regularization
-        bias="none",                         # don't train bias terms
-        task_type=TaskType.CAUSAL_LM,        # causal language modeling task
-    )
-
-    model = get_peft_model(model, lora_config)
-
-    # Print trainable parameter summary
-    model.print_trainable_parameters()
-
-    return model
+from model import load_jsonl, load_base_model_and_tokenizer, attach_lora
 
 
 # =============================================================================
@@ -153,7 +55,7 @@ def calc_loss_batch(model, input_ids, target_ids):
 def eval_loss_loader(model, loader, max_batches=5):
     """
     Estimate loss over a dataloader by averaging over up to max_batches batches.
-    Uses torch.no_grad() to skip gradient computation during evaluation.
+    Uses torch.no_grad() to skip gradient computation during evaluation (no weight updates).
 
     Args:
         model: model in eval mode
@@ -243,16 +145,6 @@ def train_model(model, train_loader, dev_loader, epochs=EPOCHS, lr=LR, eval_ever
 def run_training(schema_name, rank=LORA_R):
     """
     Full training pipeline for one schema format and LoRA rank.
-
-    Steps:
-      1. Set random seeds for reproducibility
-      2. Load train and dev data from JSONL files
-      3. Load base model and tokenizer (QLoRA)
-      4. Attach LoRA adapters
-      5. Build DataLoaders for this schema format
-      6. Run training loop
-      7. Save adapter weights
-      8. Save training log (loss history)
 
     Args:
         schema_name (str): one of 'relational', 'create_table', 'json', 'nl'
