@@ -1,3 +1,6 @@
+# =============================================================================
+# prompt_builder.py
+
 # Contains utility functions for loading schema files and assembling model prompts
 # the prompt format is fixed across all experiments
 # only the schema string changes between runs

@@ -1,6 +1,9 @@
+# =============================================================================
+# config.py
 # Central configuration file for this project
 # all important paths, hyperparameters, and setting are defined here
 # other scripts imports from this file
+# =============================================================================
 
 import os
 

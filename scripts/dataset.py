@@ -1,3 +1,5 @@
+# =============================================================================
+# dataset.py
 # PyTorch Dataset class and collate function for supervised fine-tuning
 
 # TextToSQLDataset and collate_sft_batch from my milestone 2 notebook (01_milestone2_smoke_test.ipynb)
@@ -8,6 +10,7 @@
 # - removed hardcoded globals (PAD_ID, ALLOWED_MAX_LEN) -> now imported from config.py
 # - schema string is passed as a parameter to collate_sft_batch so the same dataset class works for all schema formats
 # - tokenizer is passed explicitly so the module has no global state
+# =============================================================================
 
 import torch
 from torch.utils.data import Dataset, DataLoader
