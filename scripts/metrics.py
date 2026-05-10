@@ -94,7 +94,7 @@ def execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
         pred_sql (str): model-generated SQL
         gold_sql (str): gold SQL from the dataset
         conn (sqlite3.Connection): open database connection
-        gold_cache (dict,): pre-computed gold execution results from precompute_gold_results()
+        gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
 
     Returns:
         bool: True if result sets match, False otherwise
