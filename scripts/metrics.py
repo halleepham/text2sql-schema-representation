@@ -6,10 +6,11 @@
 #   1. Exact Match (EM): predicted SQL == gold SQL (string comparison)
 #   2. Execution Accuracy (EX): predicted SQL produces same result set as gold SQL
 #   3. Exact Set Match (ESM): clause-level set comparison, order-insensitive
-#
+#   4. Record Match Accuracy (RMA): checks whether predict SQL produces same records (ids)
+
 # Each metric function takes a predicted SQL string and a gold SQL string
 # and returns True (correct) or False (incorrect).
-#
+
 # aggregate_metrics() runs all three over a list of predictions and returns
 # accuracy scores (0.0 to 1.0) for each metric.
 # =============================================================================
@@ -17,7 +18,6 @@
 import re
 import sqlite3
 from config import DB_PATH
-import threading
 
 
 # =============================================================================
@@ -65,44 +65,24 @@ def exact_match(pred_sql, gold_sql):
 # METRIC 2: EXECUTION ACCURACY
 # =============================================================================
 
-def execute_sql(sql, conn, timeout=10):
+def execute_sql(sql, conn):
     """
     Execute a SQL query against the ATIS SQLite database.
 
     Args:
         sql (str): SQL query to execute
         conn (sqlite3.Connection): open database connection
-        timeout (int): max seconds before giving up (default 10)
 
     Returns:
         results (list of tuples) if execution succeeds
-        None if execution fails or times out (syntax error, invalid table/column, etc.)
+        None if execution fails(syntax error, invalid table/column, etc.)
     """
-    result_container = [None]
-    error_container = [None]
-
-    def run_query():
-        try:
-            cursor = conn.cursor()
-            cursor.execute(sql)
-            result_container[0] = cursor.fetchall()
-        except Exception as e:
-            # Any SQL error (syntax error, invalid table, etc.) counts as a failure
-            error_container[0] = e
-
-    thread = threading.Thread(target=run_query)
-    thread.start()
-    thread.join(timeout=timeout)
-
-    if thread.is_alive():
-        # Query timed out
-        print(f"[TIMEOUT] Query exceeded {timeout}s: {sql[:60]}...")
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        return cursor.fetchall()
+    except Exception:
         return None
-
-    if error_container[0] is not None:
-        return None
-
-    return result_container[0]
 
 def execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
     """
@@ -194,7 +174,7 @@ def exact_set_match(pred_sql, gold_sql):
     return pred_clauses == gold_clauses
 
 # =============================================================================
-# METRIC : RECORD MATCH ACCURACY
+# METRIC 4: RECORD MATCH ACCURACY
 # =============================================================================
 
 def record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
@@ -205,7 +185,7 @@ def record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
     Args:
         pred_sql (str): model-generated SQL
         gold_sql (str): gold SQL from the dataset
-        conn       (sqlite3.Connection): open database connection
+        conn (sqlite3.Connection): open database connection
         gold_cache (dict): pre-computed gold execution results
 
     Returns:
