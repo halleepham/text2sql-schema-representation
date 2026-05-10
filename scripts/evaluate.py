@@ -82,6 +82,62 @@ def generate_sql(model, tokenizer, prompt, device, max_new_tokens=MAX_NEW_TOKENS
     return pred_sql
 
 
+def generate_sql_batch(model, tokenizer, prompts, device, max_new_tokens=MAX_NEW_TOKENS):
+    """
+    Generate SQL for a batch of prompts simultaneously.
+
+    Args:
+        model: model in eval mode
+        tokenizer: LLaMA tokenizer
+        prompts (list): list of fully assembled prompt strings
+        device (str): 'cuda' or 'cpu'
+        max_new_tokens: maximum tokens to generate per example
+
+    Returns:
+        list of predicted SQL strings, one per prompt
+    """
+    # Left padding required for decoder-only batched generation
+    tokenizer.padding_side = "left"
+
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        truncation=True,
+        max_length=1024,
+        padding=True,
+    ).to(device)
+
+    # Per-example actual prompt lengths (excluding padding tokens)
+    input_lengths = inputs["attention_mask"].sum(dim=1)
+
+    with torch.no_grad():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+
+    # Reset padding side for training compatibility
+    tokenizer.padding_side = "right"
+
+    # Extract and post-process generated tokens per example
+    results = []
+    for i in range(len(prompts)):
+        generated_ids = output_ids[i][input_lengths[i]:]
+        pred_sql = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+        if ";" in pred_sql:
+            pred_sql = pred_sql.split(";")[0].strip() + ";"
+        else:
+            pred_sql = pred_sql.split("\n")[0].strip()
+
+        results.append(pred_sql)
+
+    return results
+
+
 # =============================================================================
 # EVALUATION LOOP
 # =============================================================================
