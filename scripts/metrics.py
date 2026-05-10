@@ -17,6 +17,7 @@
 import re
 import sqlite3
 from config import DB_PATH
+import threading
 
 
 # =============================================================================
@@ -64,26 +65,44 @@ def exact_match(pred_sql, gold_sql):
 # METRIC 2: EXECUTION ACCURACY
 # =============================================================================
 
-def execute_sql(sql, conn):
+def execute_sql(sql, conn, timeout=10):
     """
     Execute a SQL query against the ATIS SQLite database.
 
     Args:
         sql (str): SQL query to execute
         conn (sqlite3.Connection): open database connection
+        timeout (int): max seconds before giving up (default 10)
 
     Returns:
         results (list of tuples) if execution succeeds
-        None if execution fails (syntax error, invalid table/column, etc.)
+        None if execution fails or times out (syntax error, invalid table/column, etc.)
     """
-    try:
-        cursor = conn.cursor()
-        cursor.execute(sql)
-        return cursor.fetchall()
-    except Exception:
-        # Any SQL error (syntax error, invalid table, etc.) counts as a failure
+    result_container = [None]
+    error_container = [None]
+
+    def run_query():
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            result_container[0] = cursor.fetchall()
+        except Exception as e:
+            # Any SQL error (syntax error, invalid table, etc.) counts as a failure
+            error_container[0] = e
+
+    thread = threading.Thread(target=run_query)
+    thread.start()
+    thread.join(timeout=timeout)
+
+    if thread.is_alive():
+        # Query timed out
+        print(f"[TIMEOUT] Query exceeded {timeout}s: {sql[:60]}...")
         return None
 
+    if error_container[0] is not None:
+        return None
+
+    return result_container[0]
 
 def execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
     """
