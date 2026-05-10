@@ -72,9 +72,12 @@ def generate_sql(model, tokenizer, prompt, device, max_new_tokens=MAX_NEW_TOKENS
     # Decode generated token IDs back to a string
     pred_sql = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-    # Take only the first line (the SQL should be single-line)
-    # discard any text after the generated SQL
-    pred_sql = pred_sql.split("\n")[0].strip()
+    # Extract SQL up to and including the first semicolon
+    if ";" in pred_sql:
+        pred_sql = pred_sql.split(";")[0].strip() + ";"
+    else:
+        # fallback if base model doesn't reliably generate semicolons
+        pred_sql = pred_sql.split("\n")[0].strip()
 
     return pred_sql
 
