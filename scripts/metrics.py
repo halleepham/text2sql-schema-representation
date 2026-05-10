@@ -175,6 +175,40 @@ def exact_set_match(pred_sql, gold_sql):
     return pred_clauses == gold_clauses
 
 # =============================================================================
+# METRIC : RECORD MATCH ACCURACY
+# =============================================================================
+
+def record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
+    """
+    Check whether predicted SQL returns the same set of records as gold SQL,
+    comparing only the first column (record ID) from each result set.
+
+    Args:
+        pred_sql (str): model-generated SQL
+        gold_sql (str): gold SQL from the dataset
+        conn       (sqlite3.Connection): open database connection
+        gold_cache (dict): pre-computed gold execution results
+
+    Returns:
+        bool: True if first-column values match as sets, False otherwise
+    """
+    if gold_cache is not None and gold_sql in gold_cache:
+        gold_results = gold_cache[gold_sql]
+    else:
+        gold_results = execute_sql(gold_sql, conn)
+
+    pred_results = execute_sql(pred_sql, conn)
+
+    if pred_results is None or gold_results is None:
+        return False
+
+    # Extract first column only from each result set
+    gold_ids = set(row[0] for row in gold_results)
+    pred_ids = set(row[0] for row in pred_results)
+
+    return gold_ids == pred_ids
+
+# =============================================================================
 # GET GOLD SQL RESULTS
 # =============================================================================
 
