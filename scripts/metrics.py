@@ -265,6 +265,7 @@ def aggregate_metrics(predictions, gold_cache):
     n_ex = 0
     n_esm = 0
     n_exec_error = 0
+    n_rma = 0
 
     # single database connection
     conn = sqlite3.connect(DB_PATH)
@@ -285,6 +286,9 @@ def aggregate_metrics(predictions, gold_cache):
 
             if exact_set_match(pred_sql, gold_sql):
                 n_esm += 1
+
+            if record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
+                n_rma += 1
     finally:
         conn.close()
 
@@ -294,4 +298,5 @@ def aggregate_metrics(predictions, gold_cache):
         "exact_set_match": round(n_esm / n_total, 4) if n_total > 0 else 0.0,
         "n_total": n_total,
         "n_exec_error": n_exec_error,
+        "record_match_acc": round(n_rma / n_total, 4) if n_total > 0 else 0.0,
     }

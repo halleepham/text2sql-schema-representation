@@ -200,9 +200,10 @@ def run_evaluation(schema_name, model_type, rank=LORA_R):
 
     # 8. Print metrics summary
     print(f"\n--- Results: {schema_name} | {model_type} ---")
-    print(f"  Exact Match: {metrics['exact_match']:.4f} ({int(metrics['exact_match'] * metrics['n_total'])}/{metrics['n_total']})")
-    print(f"  Execution Acc: {metrics['execution_acc']:.4f} ({int(metrics['execution_acc'] * metrics['n_total'])}/{metrics['n_total']})")
-    print(f"  Exact Set Match: {metrics['exact_set_match']:.4f} ({int(metrics['exact_set_match'] * metrics['n_total'])}/{metrics['n_total']})")
-    print(f"  Exec Errors: {metrics['n_exec_error']}/{metrics['n_total']}")
-
+    print(f"Exact Match: {metrics['exact_match']:.4f} ({int(metrics['exact_match'] * metrics['n_total'])}/{metrics['n_total']})")
+    print(f"Execution Acc: {metrics['execution_acc']:.4f} ({int(metrics['execution_acc'] * metrics['n_total'])}/{metrics['n_total']})")
+    print(f"Exact Set Match: {metrics['exact_set_match']:.4f} ({int(metrics['exact_set_match'] * metrics['n_total'])}/{metrics['n_total']})")
+    print(f"Exec Errors: {metrics['n_exec_error']}/{metrics['n_total']}")
+    print(f"Record Match Acc : {metrics['record_match_acc']:.4f} ({int(metrics['record_match_acc'] * metrics['n_total'])}/{metrics['n_total']})")
+    
     return metrics
