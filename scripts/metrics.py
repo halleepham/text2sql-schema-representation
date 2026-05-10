@@ -64,31 +64,28 @@ def exact_match(pred_sql, gold_sql):
 # METRIC 2: EXECUTION ACCURACY
 # =============================================================================
 
-def execute_sql(sql, db_path=DB_PATH):
+def execute_sql(sql, conn):
     """
     Execute a SQL query against the ATIS SQLite database.
 
     Args:
         sql (str): SQL query to execute
-        db_path (str): path to the SQLite database file
+        conn (sqlite3.Connection): open database connection
 
     Returns:
         results (list of tuples) if execution succeeds
         None if execution fails (syntax error, invalid table/column, etc.)
     """
     try:
-        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute(sql)
-        results = cursor.fetchall()
-        conn.close()
-        return results
+        return cursor.fetchall()
     except Exception:
         # Any SQL error (syntax error, invalid table, etc.) counts as a failure
         return None
 
 
-def execution_accuracy(pred_sql, gold_sql):
+def execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
     """
     Check whether predicted SQL produces the same result set as gold SQL
     when executed against the ATIS database.
@@ -96,17 +93,22 @@ def execution_accuracy(pred_sql, gold_sql):
     Args:
         pred_sql (str): model-generated SQL
         gold_sql (str): gold SQL from the dataset
+        conn (sqlite3.Connection): open database connection
+        gold_cache (dict,): pre-computed gold execution results from precompute_gold_results()
 
     Returns:
         bool: True if result sets match, False otherwise
     """
-    pred_results = execute_sql(pred_sql)
-    gold_results = execute_sql(gold_sql)
+    if gold_cache is not None and gold_sql in gold_cache:
+        gold_results = gold_cache[gold_sql]
+    else:
+        gold_results = execute_sql(gold_sql, conn)
+
+    pred_results = execute_sql(pred_sql, conn)
 
     # If either query fails to execute, mark as incorrect
     if pred_results is None or gold_results is None:
         return False
-
     # Sort both result sets before comparing to handle row order differences.
     # SQL does not guarantee row ordering unless ORDER BY is specified.
     return sorted(pred_results) == sorted(gold_results)
@@ -172,12 +174,41 @@ def exact_set_match(pred_sql, gold_sql):
     gold_clauses = parse_sql_clauses(gold_sql)
     return pred_clauses == gold_clauses
 
+# =============================================================================
+# GET GOLD SQL RESULTS
+# =============================================================================
+
+def precompute_gold_results(test_data, db_path=DB_PATH):
+    """
+    Pre-execute all gold SQL queries once and cache results.
+    Avoids re-running the same gold queries across multiple experiments.
+
+    Args:
+        test_data (list[dict]): test examples with 'sql' key
+        db_path (str): path to SQLite database
+
+    Returns:
+        dict mapping gold_sql (str) -> result set (list of tuples) or None
+    """
+    gold_cache = {}
+    conn = sqlite3.connect(db_path)
+
+    try:
+        for entry in test_data:
+            gold_sql = entry["sql"]
+            if gold_sql not in gold_cache:
+                gold_cache[gold_sql] = execute_sql(gold_sql, conn)
+    finally:
+        conn.close()
+    
+    print(f"Gold cache computed: {len(gold_cache)} unique gold queries cached")
+    return gold_cache
 
 # =============================================================================
 # AGGREGATE METRICS
 # =============================================================================
 
-def aggregate_metrics(predictions):
+def aggregate_metrics(predictions, gold_cache):
     """
     Compute EM, EX, and ESM accuracy over a list of prediction dicts.
 
@@ -185,6 +216,7 @@ def aggregate_metrics(predictions):
         predictions (list[dict]): each dict must have keys:
             pred_sql (str): model-generated SQL
             gold_sql (str): gold SQL from the dataset
+        gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
 
     Returns:
         dict with keys:
@@ -200,26 +232,32 @@ def aggregate_metrics(predictions):
     n_esm = 0
     n_exec_error = 0
 
-    for p in predictions:
-        pred_sql = p["pred_sql"]
-        gold_sql = p["gold_sql"]
+    # single database connection
+    conn = sqlite3.connect(DB_PATH)
 
-        if exact_match(pred_sql, gold_sql):
-            n_em += 1
+    try:
+        for p in predictions:
+            pred_sql = p["pred_sql"]
+            gold_sql = p["gold_sql"]
 
-        if execution_accuracy(pred_sql, gold_sql):
-            n_ex += 1
-        elif execute_sql(pred_sql) is None:
-            # Track how many predictions failed to execute at all
-            n_exec_error += 1
+            if exact_match(pred_sql, gold_sql):
+                n_em += 1
 
-        if exact_set_match(pred_sql, gold_sql):
-            n_esm += 1
+            if execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
+                n_ex += 1
+            elif execute_sql(pred_sql, conn) is None:
+                # Track how many predictions failed to execute at all
+                n_exec_error += 1
+
+            if exact_set_match(pred_sql, gold_sql):
+                n_esm += 1
+    finally:
+        conn.close()
 
     return {
-        "exact_match"     : round(n_em  / n_total, 4) if n_total > 0 else 0.0,
-        "execution_acc"   : round(n_ex  / n_total, 4) if n_total > 0 else 0.0,
-        "exact_set_match" : round(n_esm / n_total, 4) if n_total > 0 else 0.0,
-        "n_total"         : n_total,
-        "n_exec_error"    : n_exec_error,
+        "exact_match": round(n_em  / n_total, 4) if n_total > 0 else 0.0,
+        "execution_acc": round(n_ex  / n_total, 4) if n_total > 0 else 0.0,
+        "exact_set_match": round(n_esm / n_total, 4) if n_total > 0 else 0.0,
+        "n_total": n_total,
+        "n_exec_error": n_exec_error,
     }

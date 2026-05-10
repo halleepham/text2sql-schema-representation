@@ -25,7 +25,7 @@ from config import (
     SEED,
 )
 from prompt_builder import load_schema, build_prompt
-from metrics import aggregate_metrics
+from metrics import aggregate_metrics, precompute_gold_results
 from model import load_jsonl, load_base_model_and_tokenizer, load_lora_model_and_tokenizer
 
 # =============================================================================
@@ -83,7 +83,7 @@ def generate_sql(model, tokenizer, prompt, device, max_new_tokens=MAX_NEW_TOKENS
 # EVALUATION LOOP
 # =============================================================================
 
-def evaluate_model(model, tokenizer, test_data, schema, device):
+def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache):
     """
     Run inference on the full test set and compute metrics.
 
@@ -98,6 +98,7 @@ def evaluate_model(model, tokenizer, test_data, schema, device):
         test_data (list[dict]): test examples from split_test.jsonl
         schema (str): schema string for this experiment
         device (str): 'cuda' or 'cpu'
+        gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
 
     Returns:
         predictions (list[dict]): per-example results
@@ -126,7 +127,7 @@ def evaluate_model(model, tokenizer, test_data, schema, device):
         })
 
     # Compute aggregate metrics over all predictions
-    metrics = aggregate_metrics(predictions)
+    metrics = aggregate_metrics(predictions, gold_cache)
 
     return predictions, metrics
 
@@ -181,7 +182,8 @@ def run_evaluation(schema_name, model_type, rank=LORA_R):
 
     # 5. Run inference on all test examples
     print(f"\nRunning inference on {len(test_data)} test examples...\n")
-    predictions, metrics = evaluate_model(model, tokenizer, test_data, schema, device)
+    gold_cache = precompute_gold_results(test_data)
+    predictions, metrics = evaluate_model(model, tokenizer, test_data, schema, device, gold_cache)
 
     # 6. Save per-example predictions to results/
     os.makedirs(RESULTS_DIR, exist_ok=True)
