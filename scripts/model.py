@@ -86,9 +86,6 @@ def load_base_model_and_tokenizer():
     # Disable KV cache during training (only used for faster inference, not training)
     model.config.use_cache = False
 
-    # Set to eval mode (disable dropout)
-    model.eval()
-
     return model, tokenizer
 
 
