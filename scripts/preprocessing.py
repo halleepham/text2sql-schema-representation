@@ -65,7 +65,7 @@ def run_preprocessing():
       2. Filter out entries with non-empty comments (known bad SQL)
       3. Flatten sentences — one row per (question phrasing, SQL) pair
       4. Substitute variables into questions and SQL
-      5. Normalize SQL — strip trailing semicolons and whitespace
+      5. Normalize SQL — strip whitespace
       6. Deduplicate on (question, SQL) pair
       7. Split by question-split label (train/dev/test)
       8. Write splits to JSONL files
@@ -79,7 +79,7 @@ def run_preprocessing():
         print("Download complete.")
     else:
         print("atis.json already exists, skipping download.")
-        
+
     # --- Load raw data ---
     print(f"Loading raw data from {RAW_DATA_PATH}...")
     with open(RAW_DATA_PATH, "r") as f:
@@ -127,7 +127,7 @@ def run_preprocessing():
 
     for row in rows:
         # Strip trailing whitespace and semicolon from SQL
-        sql = row["sql"].rstrip(";").strip()
+        sql = row["sql"].strip().replace(" ;", ";")
         question = row["question"].strip()
 
         # Deduplicate on (question, SQL) pair
