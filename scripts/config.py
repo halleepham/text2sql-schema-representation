@@ -99,7 +99,7 @@ EVAL_EVERY = 200 # Evaluate on dev set every N steps during training
 # =============================================================================
 
 # Maximum number of new tokens the model can generate at inference time.
-MAX_NEW_TOKENS = 128
+MAX_NEW_TOKENS = 64
 
 # =============================================================================
 # REPRODUCIBILITY
