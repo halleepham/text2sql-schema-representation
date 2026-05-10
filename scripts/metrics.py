@@ -110,7 +110,7 @@ def execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
         return False
     # Sort both result sets before comparing to handle row order differences.
     # SQL does not guarantee row ordering unless ORDER BY is specified.
-    return sorted(pred_results) == sorted(gold_results)
+    return sorted(pred_results, key=lambda x: str(x)) == sorted(gold_results, key=lambda x: str(x))
 
 
 # =============================================================================
@@ -202,8 +202,8 @@ def record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
         return False
 
     # Extract first column only from each result set
-    gold_ids = set(row[0] for row in gold_results)
-    pred_ids = set(row[0] for row in pred_results)
+    gold_ids = set(str(row[0]) for row in gold_results)
+    pred_ids = set(str(row[0]) for row in pred_results)
 
     return gold_ids == pred_ids
 
