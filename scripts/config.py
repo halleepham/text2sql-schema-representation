@@ -90,7 +90,7 @@ LORA_DROPOUT = 0.05
 # =============================================================================
 
 EPOCHS = 3
-BATCH_SIZE = 2
+BATCH_SIZE = 8
 LR = 5e-5 # Learning rate (AdamW optimizer)
 EVAL_EVERY = 200 # Evaluate on dev set every N steps during training
 
