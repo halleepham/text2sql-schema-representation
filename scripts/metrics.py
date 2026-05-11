@@ -238,24 +238,59 @@ def precompute_gold_results(test_data, db_path=DB_PATH):
     return gold_cache
 
 # =============================================================================
+# COMPUTE METRICS FOR INDIVIDUAL PREDICTION
+# =============================================================================
+
+def compute_per_prediction_metrics(predictions, gold_cache, db_path=DB_PATH):
+    """
+    Compute per-example metrics for each prediction and add it to the predictions list.
+
+    Args:
+        predictions (list[dict]): each dict must have keys pred_sql and gold_sql
+        gold_cache  (dict): pre-computed gold execution results
+        db_path (str): path to SQLite database
+
+    Returns:
+        list[dict]: same predictions list with per-example metric keys added
+    """
+    conn = sqlite3.connect(db_path)
+
+    try:
+        for p in predictions:
+            pred_sql = p["pred_sql"]
+            gold_sql = p["gold_sql"]
+
+            p["exact_match"] = exact_match(pred_sql, gold_sql)
+            p["execution_acc"] = execution_accuracy(pred_sql, gold_sql, conn, gold_cache)
+            p["exact_set_match"]  = exact_set_match(pred_sql, gold_sql)
+            p["record_match_acc"] = record_match_accuracy(pred_sql, gold_sql, conn, gold_cache)
+    finally:
+        conn.close()
+
+    return predictions
+
+# =============================================================================
 # AGGREGATE METRICS
 # =============================================================================
 
-def aggregate_metrics(predictions, gold_cache):
+def aggregate_metrics(predictions):
     """
-    Compute EM, EX, and ESM accuracy over a list of prediction dicts.
+    Compute EM, EX, and ESM , and RMA scores from per-prediction metric results
 
     Args:
         predictions (list[dict]): each dict must have keys:
             pred_sql (str): model-generated SQL
             gold_sql (str): gold SQL from the dataset
-        gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
-
+            exact_match (bool): per-example exact match result
+            execution_acc (bool): per-example execution accuracy result
+            exact_set_match (bool): per-example exact set match result
+            record_match_acc (bool): per-example record match accuracy result
     Returns:
         dict with keys:
             exact_match (float): fraction of predictions that are exact matches
             execution_acc (float): fraction of predictions with correct execution results
             exact_set_match (float): fraction of predictions that match at clause level
+            record_match_acc (float): fraction with correct record matches
             n_total (int): total number of predictions evaluated
             n_exec_error (int): number of predictions that failed to execute
     """
@@ -263,30 +298,24 @@ def aggregate_metrics(predictions, gold_cache):
     n_em = 0
     n_ex = 0
     n_esm = 0
-    n_exec_error = 0
     n_rma = 0
+    n_exec_error = 0
 
     # single database connection
     conn = sqlite3.connect(DB_PATH)
 
     try:
         for p in predictions:
-            pred_sql = p["pred_sql"]
-            gold_sql = p["gold_sql"]
-
-            if exact_match(pred_sql, gold_sql):
+            if p["exact_match"]:
                 n_em += 1
-
-            if execution_accuracy(pred_sql, gold_sql, conn, gold_cache):
+            if p["execution_acc"]:
                 n_ex += 1
-            elif execute_sql(pred_sql, conn) is None:
+            elif execute_sql(p["pred_sql"], conn) is None:
                 # Track how many predictions failed to execute at all
                 n_exec_error += 1
-
-            if exact_set_match(pred_sql, gold_sql):
+            if p["exact_set_match"]:
                 n_esm += 1
-
-            if record_match_accuracy(pred_sql, gold_sql, conn, gold_cache):
+            if p["record_match_acc"]:
                 n_rma += 1
     finally:
         conn.close()
@@ -295,7 +324,7 @@ def aggregate_metrics(predictions, gold_cache):
         "exact_match": round(n_em  / n_total, 4) if n_total > 0 else 0.0,
         "execution_acc": round(n_ex  / n_total, 4) if n_total > 0 else 0.0,
         "exact_set_match": round(n_esm / n_total, 4) if n_total > 0 else 0.0,
+        "record_match_acc": round(n_rma / n_total, 4) if n_total > 0 else 0.0,
         "n_total": n_total,
         "n_exec_error": n_exec_error,
-        "record_match_acc": round(n_rma / n_total, 4) if n_total > 0 else 0.0,
     }

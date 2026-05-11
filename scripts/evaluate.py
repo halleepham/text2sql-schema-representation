@@ -12,6 +12,7 @@
 import os
 import json
 import torch
+import time
 
 from config import (
     MODEL_ID,
@@ -25,7 +26,7 @@ from config import (
     SEED,
 )
 from prompt_builder import load_schema, build_prompt
-from metrics import aggregate_metrics, precompute_gold_results
+from metrics import aggregate_metrics, precompute_gold_results, compute_per_prediction_metrics
 from model import load_jsonl, load_base_model_and_tokenizer, load_lora_model_and_tokenizer
 
 # =============================================================================
@@ -72,25 +73,80 @@ def generate_sql(model, tokenizer, prompt, device, max_new_tokens=MAX_NEW_TOKENS
     # Decode generated token IDs back to a string
     pred_sql = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-    # Take only the first line (the SQL should be single-line)
-    # discard any text after the generated SQL
-    pred_sql = pred_sql.split("\n")[0].strip()
+    # Extract SQL up to and including the first semicolon
+    if ";" in pred_sql:
+        pred_sql = pred_sql.split(";")[0].strip() + ";"
+    else:
+        # fallback if base model doesn't reliably generate semicolons
+        pred_sql = pred_sql.split("\n")[0].strip()
 
     return pred_sql
+
+
+def generate_sql_batch(model, tokenizer, prompts, device, max_new_tokens=MAX_NEW_TOKENS):
+    """
+    Generate SQL for a batch of prompts simultaneously.
+
+    Args:
+        model: model in eval mode
+        tokenizer: LLaMA tokenizer
+        prompts (list): list of fully assembled prompt strings
+        device (str): 'cuda' or 'cpu'
+        max_new_tokens: maximum tokens to generate per example
+
+    Returns:
+        list of predicted SQL strings, one per prompt
+    """
+    # Left padding required for decoder-only batched generation
+    tokenizer.padding_side = "left"
+
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        truncation=True,
+        max_length=1024,
+        padding=True,
+    ).to(device)
+
+    # Per-example actual prompt lengths (excluding padding tokens)
+    input_length = inputs["input_ids"].shape[1]
+
+    with torch.no_grad():
+        output_ids = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+        )
+
+    # Reset padding side for training compatibility
+    tokenizer.padding_side = "right"
+
+    # Extract and post-process generated tokens per example
+    results = []
+    for i in range(len(prompts)):
+        generated_ids = output_ids[i][input_length:]
+        pred_sql = tokenizer.decode(generated_ids, skip_special_tokens=True)
+        pred_sql = pred_sql.lstrip(": \t")
+
+        if ";" in pred_sql:
+            pred_sql = pred_sql.split(";")[0].strip() + ";"
+        else:
+            pred_sql = pred_sql.split("\n")[0].strip()
+
+        results.append(pred_sql)
+
+    return results
 
 
 # =============================================================================
 # EVALUATION LOOP
 # =============================================================================
 
-def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache):
+def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache, batch_size=8):
     """
-    Run inference on the full test set and compute metrics.
-
-    For each test example:
-      - Builds the prompt
-      - Generates predicted SQL
-      - Stores question, gold SQL, predicted SQL, and per-example metric results
+    Run batched inference on the full test set and compute metrics.
 
     Args:
         model: model in eval mode
@@ -99,35 +155,42 @@ def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache):
         schema (str): schema string for this experiment
         device (str): 'cuda' or 'cpu'
         gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
+        batch_size (int): number of examples per batch (default 8)
 
     Returns:
         predictions (list[dict]): per-example results
-        metrics (dict): aggregate EM, EX, ESM scores
+        metrics (dict): aggregate EM, EX, ESM, RMA scores
     """
     predictions = []
     n = len(test_data)
+    total_start = time.time()
 
-    for i, entry in enumerate(test_data):
+    for i in range(0, n, batch_size):
+        batch = test_data[i:i+batch_size]
+        prompts = [build_prompt(e["question"], schema) for e in batch]
+
+        pred_sqls = generate_sql_batch(model, tokenizer, prompts, device)
+
+        for entry, pred_sql in zip(batch, pred_sqls):
+            predictions.append({
+                "question": entry["question"],
+                "gold_sql" : entry["sql"],
+                "pred_sql" : pred_sql,
+            })
+
         # Progress indicator
-        if (i + 1) % 50 == 0 or i == 0:
-            print(f"  Evaluating example {i+1}/{n}...")
+        if i == 0 or (i // batch_size + 1) % 5 == 0:
+            elapsed = time.time() - total_start
+            print(f"  Batch {i//batch_size + 1}/{(n+batch_size-1)//batch_size} "
+                  f"| examples {i+1}-{min(i+batch_size, n)}/{n} "
+                  f"| elapsed: {elapsed/60:.1f} min")
 
-        question = entry["question"]
-        gold_sql = entry["sql"]
+    total_time = time.time() - total_start
+    print(f"\nInference complete in {total_time/60:.1f} minutes")
 
-        # Build prompt and generate SQL
-        prompt = build_prompt(question, schema)
-        pred_sql = generate_sql(model, tokenizer, prompt, device)
-
-        # Store per-example result
-        predictions.append({
-            "question": question,
-            "gold_sql": gold_sql,
-            "pred_sql": pred_sql,
-        })
-
+    predictions = compute_per_prediction_metrics(predictions, gold_cache)
     # Compute aggregate metrics over all predictions
-    metrics = aggregate_metrics(predictions, gold_cache)
+    metrics = aggregate_metrics(predictions)
 
     return predictions, metrics
 
