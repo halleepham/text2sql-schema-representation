@@ -77,6 +77,10 @@ def execute_sql(sql, conn):
         results (list of tuples) if execution succeeds
         None if execution fails(syntax error, invalid table/column, etc.)
     """
+    # Guard against Cartesian product queries that cause SQLite to hang
+    # In future, find better way to handle
+    if sql.lower().count('flight_stop') > 15:
+        return None
     try:
         cursor = conn.cursor()
         cursor.execute(sql)
