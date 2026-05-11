@@ -90,7 +90,7 @@ LORA_DROPOUT = 0.05
 # =============================================================================
 
 EPOCHS = 3
-BATCH_SIZE = 8
+TRAIN_BATCH_SIZE = 2
 LR = 5e-5 # Learning rate (AdamW optimizer)
 EVAL_EVERY = 200 # Evaluate on dev set every N steps during training
 
@@ -100,6 +100,7 @@ EVAL_EVERY = 200 # Evaluate on dev set every N steps during training
 
 # Maximum number of new tokens the model can generate at inference time.
 MAX_NEW_TOKENS = 256
+INFERENCE_BATCH_SIZE = 8
 
 # =============================================================================
 # REPRODUCIBILITY

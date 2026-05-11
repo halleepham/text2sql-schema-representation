@@ -16,7 +16,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from functools import partial
 
-from config import BATCH_SIZE, MAX_SEQ_LEN
+from config import TRAIN_BATCH_SIZE, MAX_SEQ_LEN
 from prompt_builder import build_prompt
 
 # =============================================================================
@@ -167,14 +167,14 @@ def make_dataloaders(train_data, dev_data, tokenizer, schema, device):
  
     train_loader = DataLoader(
         TextToSQLDataset(train_data),
-        batch_size=BATCH_SIZE,
+        batch_size=TRAIN_BATCH_SIZE,
         shuffle=True,   # shuffle training data each epoch
         collate_fn=collate_fn,
     )
  
     dev_loader = DataLoader(
         TextToSQLDataset(dev_data),
-        batch_size=BATCH_SIZE,
+        batch_size=TRAIN_BATCH_SIZE,
         shuffle=False,  # no shuffle for evaluation
         collate_fn=collate_fn,
     )
