@@ -108,7 +108,7 @@ def generate_sql_batch(model, tokenizer, prompts, device, max_new_tokens=MAX_NEW
     ).to(device)
 
     # Per-example actual prompt lengths (excluding padding tokens)
-    input_lengths = inputs["attention_mask"].sum(dim=1)
+    input_length = inputs["input_ids"].shape[1]
 
     with torch.no_grad():
         output_ids = model.generate(
@@ -125,8 +125,9 @@ def generate_sql_batch(model, tokenizer, prompts, device, max_new_tokens=MAX_NEW
     # Extract and post-process generated tokens per example
     results = []
     for i in range(len(prompts)):
-        generated_ids = output_ids[i][input_lengths[i]:]
+        generated_ids = output_ids[i][input_length:]
         pred_sql = tokenizer.decode(generated_ids, skip_special_tokens=True)
+        pred_sql = pred_sql.lstrip(": \t")
 
         if ";" in pred_sql:
             pred_sql = pred_sql.split(";")[0].strip() + ";"
