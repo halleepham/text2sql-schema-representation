@@ -26,7 +26,7 @@ from config import (
     SEED,
 )
 from prompt_builder import load_schema, build_prompt
-from metrics import aggregate_metrics, precompute_gold_results
+from metrics import aggregate_metrics, precompute_gold_results, compute_per_prediction_metrics
 from model import load_jsonl, load_base_model_and_tokenizer, load_lora_model_and_tokenizer
 
 # =============================================================================
@@ -188,8 +188,9 @@ def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache, batc
     total_time = time.time() - total_start
     print(f"\nInference complete in {total_time/60:.1f} minutes")
 
+    predictions = compute_per_prediction_metrics(predictions, gold_cache)
     # Compute aggregate metrics over all predictions
-    metrics = aggregate_metrics(predictions, gold_cache)
+    metrics = aggregate_metrics(predictions)
 
     return predictions, metrics
 
