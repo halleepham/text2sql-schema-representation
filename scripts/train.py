@@ -179,6 +179,7 @@ def run_training(schema_name, rank=LORA_R):
     # 4. Attach LoRA adapters
     print(f"\nAttaching LoRA adapters (rank={rank})...")
     model = attach_lora(model, rank=rank)
+    model.print_trainable_parameters()
 
     # 5. Build DataLoaders for this schema format
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -199,8 +200,9 @@ def run_training(schema_name, rank=LORA_R):
     print(f"Adapter saved to {adapter_path}")
 
     # 8. Save training log (loss history)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    log_path = os.path.join(RESULTS_DIR, f"train_log_{schema_name}_r{rank}.json")
+    log_dir = os.path.join(RESULTS_DIR, f"lora_r{rank}", "training")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f"train_log_{schema_name}_r{rank}.json")
     with open(log_path, "w") as f:
         json.dump(history, f, indent=2)
     print(f"Training log saved to {log_path}")
