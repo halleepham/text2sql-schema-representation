@@ -1,0 +1,8 @@
+{
+  "exact_match": 0.0,
+  "execution_acc": 0.0522,
+  "exact_set_match": 0.0,
+  "n_total": 402,
+  "n_exec_error": 83,
+  "record_match_acc": 0.0821
+}

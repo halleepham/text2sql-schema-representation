@@ -50,14 +50,14 @@ def get_predictions_path(schema_name, model_type):
     model_type is either 'base' or 'lora'.
     Example: results/predictions_relational_base.json
     """
-    return os.path.join(RESULTS_DIR, f"predictions_{schema_name}_{model_type}.json")
+    return os.path.join(RESULTS_DIR, model_type, "predictions", f"predictions_{schema_name}_{model_type}.json")
 
 def get_metrics_path(schema_name, model_type):
     """
     Return the save path for aggregate metrics summary.
     Example: results/metrics_relational_base.json
     """
-    return os.path.join(RESULTS_DIR, f"metrics_{schema_name}_{model_type}.json")
+    return os.path.join(RESULTS_DIR, model_type, "metrics", f"metrics_{schema_name}_{model_type}.json")
 
 # =============================================================================
 # MODEL
