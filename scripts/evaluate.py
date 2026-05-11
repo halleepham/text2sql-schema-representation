@@ -12,6 +12,7 @@
 import os
 import json
 import torch
+import time
 
 from config import (
     MODEL_ID,
@@ -143,14 +144,9 @@ def generate_sql_batch(model, tokenizer, prompts, device, max_new_tokens=MAX_NEW
 # EVALUATION LOOP
 # =============================================================================
 
-def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache):
+def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache, batch_size=8):
     """
-    Run inference on the full test set and compute metrics.
-
-    For each test example:
-      - Builds the prompt
-      - Generates predicted SQL
-      - Stores question, gold SQL, predicted SQL, and per-example metric results
+    Run batched inference on the full test set and compute metrics.
 
     Args:
         model: model in eval mode
@@ -159,32 +155,38 @@ def evaluate_model(model, tokenizer, test_data, schema, device, gold_cache):
         schema (str): schema string for this experiment
         device (str): 'cuda' or 'cpu'
         gold_cache (dict): pre-computed gold execution results from precompute_gold_results()
+        batch_size (int): number of examples per batch (default 8)
 
     Returns:
         predictions (list[dict]): per-example results
-        metrics (dict): aggregate EM, EX, ESM scores
+        metrics (dict): aggregate EM, EX, ESM, RMA scores
     """
     predictions = []
     n = len(test_data)
+    total_start = time.time()
 
-    for i, entry in enumerate(test_data):
+    for i in range(0, n, batch_size):
+        batch = test_data[i:i+batch_size]
+        prompts = [build_prompt(e["question"], schema) for e in batch]
+
+        pred_sqls = generate_sql_batch(model, tokenizer, prompts, device)
+
+        for entry, pred_sql in zip(batch, pred_sqls):
+            predictions.append({
+                "question": entry["question"],
+                "gold_sql" : entry["sql"],
+                "pred_sql" : pred_sql,
+            })
+
         # Progress indicator
-        if (i + 1) % 50 == 0 or i == 0:
-            print(f"  Evaluating example {i+1}/{n}...")
+        if i == 0 or (i // batch_size + 1) % 5 == 0:
+            elapsed = time.time() - total_start
+            print(f"  Batch {i//batch_size + 1}/{(n+batch_size-1)//batch_size} "
+                  f"| examples {i+1}-{min(i+batch_size, n)}/{n} "
+                  f"| elapsed: {elapsed/60:.1f} min")
 
-        question = entry["question"]
-        gold_sql = entry["sql"]
-
-        # Build prompt and generate SQL
-        prompt = build_prompt(question, schema)
-        pred_sql = generate_sql(model, tokenizer, prompt, device)
-
-        # Store per-example result
-        predictions.append({
-            "question": question,
-            "gold_sql": gold_sql,
-            "pred_sql": pred_sql,
-        })
+    total_time = time.time() - total_start
+    print(f"\nInference complete in {total_time/60:.1f} minutes")
 
     # Compute aggregate metrics over all predictions
     metrics = aggregate_metrics(predictions, gold_cache)
