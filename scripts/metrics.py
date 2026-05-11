@@ -11,14 +11,12 @@
 # Each metric function takes a predicted SQL string and a gold SQL string
 # and returns True (correct) or False (incorrect).
 
-# aggregate_metrics() runs all three over a list of predictions and returns
-# accuracy scores (0.0 to 1.0) for each metric.
+# aggregate_metrics() runs all three over a list of predictions
 # =============================================================================
 
 import re
 import sqlite3
 from config import DB_PATH
-
 
 # =============================================================================
 # NORMALIZATION
