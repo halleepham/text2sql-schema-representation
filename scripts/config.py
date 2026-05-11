@@ -89,7 +89,7 @@ LORA_DROPOUT = 0.05
 # TRAINING HYPERPARAMETERS
 # =============================================================================
 
-EPOCHS = 3
+EPOCHS = 1
 TRAIN_BATCH_SIZE = 2
 LR = 5e-5 # Learning rate (AdamW optimizer)
 EVAL_EVERY = 200 # Evaluate on dev set every N steps during training
