@@ -35,27 +35,27 @@ SCHEMA_PATHS = {
 DB_PATH = os.path.join(REPO_ROOT, "database", "atis.sqlite")
 
 # Adapters
-ADAPTER_DIR = "/content/adapters"
+ADAPTER_DIR = "/content/text2sql-schema-representation/adapters"
 
 def get_adapter_path(schema_name, rank):
     """Return the save/load path for a specific schema + rank adapter."""
     return os.path.join(ADAPTER_DIR, f"{schema_name}_r{rank}")
 
 # Results
-RESULTS_DIR = "/content/results"
+RESULTS_DIR = "/content/text2sql-schema-representation/results"
 
 def get_predictions_path(schema_name, model_type):
     """
     Return the save path for per-example prediction results.
     model_type is either 'base' or 'lora'.
-    Example: results/predictions_relational_base.json
+    Example: results/base/predictions/predictions_relational_base.json
     """
     return os.path.join(RESULTS_DIR, model_type, "predictions", f"predictions_{schema_name}_{model_type}.json")
 
 def get_metrics_path(schema_name, model_type):
     """
     Return the save path for aggregate metrics summary.
-    Example: results/metrics_relational_base.json
+    Example: results/base/metrics/metrics_relational_base.json
     """
     return os.path.join(RESULTS_DIR, model_type, "metrics", f"metrics_{schema_name}_{model_type}.json")
 
